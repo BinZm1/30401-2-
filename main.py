@@ -1,12 +1,9 @@
 import streamlit as st
 import random
+import time
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(page_title="스페이스 카운터 & 상점", layout="centered")
-
-# 🔄 1초(1000ms)마다 페이지를 자동으로 리프레시하여 오토클릭 동작
-st_autorefresh(interval=1000, key="auto_click_counter")
 
 # 1. 세션 상태 초기화
 if "count" not in st.session_state:
@@ -20,13 +17,17 @@ if "show_shop" not in st.session_state:
 if "show_casino" not in st.session_state:
     st.session_state.show_casino = False
 
-# 🤖 오토클릭 관련 세션 상태 추가
-if "auto_clicks" not in st.session_state:
-    st.session_state.auto_clicks = 0  # 초당 자동 증가량
-if "auto_cost" not in st.session_state:
-    st.session_state.auto_cost = 5000  # 오토클릭 초기 가격
-if "total_clicks" not in st.session_state:
-    st.session_state.total_clicks = 0  # 누적 수동 클릭 횟수 (500회 해금용)
+# 🤖 오토클릭 관련 세션 상태
+if "auto_interval" not in st.session_state:
+    st.session_state.auto_interval = 1.0  # 기본 1초
+if "auto_per_sec" not in st.session_state:
+    st.session_state.auto_per_sec = 1     # 기본 1회당 +1
+if "auto_speed_cost" not in st.session_state:
+    st.session_state.auto_speed_cost = 5000  # 속도 증가 초기 비용
+if "auto_power_cost" not in st.session_state:
+    st.session_state.auto_power_cost = 10000 # 클릭량 증가 초기 비용
+if "last_auto_time" not in st.session_state:
+    st.session_state.last_auto_time = time.time()
 
 # 🎰 도박 횟수 및 쿨타임 초기화
 LIMIT_CONFIG = {
@@ -44,7 +45,15 @@ if "gamble_limits" not in st.session_state:
         10000: {"remaining": 50, "reset_at": reset_time}
     }
 
-# 2. 쿨타임 및 오토클릭 처리
+# 2. 오토클릭 주기적 반영 로직
+current_time = time.time()
+elapsed = current_time - st.session_state.last_auto_time
+if elapsed >= st.session_state.auto_interval:
+    ticks = int(elapsed // st.session_state.auto_interval)
+    st.session_state.count += ticks * st.session_state.auto_per_sec
+    st.session_state.last_auto_time = current_time - (elapsed % st.session_state.auto_interval)
+
+# 3. 쿨타임 및 리셋 체크 함수
 def check_and_reset_limits():
     now = datetime.now()
     for amount, config in st.session_state.gamble_limits.items():
@@ -54,14 +63,9 @@ def check_and_reset_limits():
 
 check_and_reset_limits()
 
-# ⏱️ 1초마다 오토클릭 수치만큼 자동 카운트 증가
-if st.session_state.auto_clicks > 0:
-    st.session_state.count += st.session_state.auto_clicks
-
-# 3. 로직 함수
+# 4. 로직 함수
 def increment():
     st.session_state.count += st.session_state.per_click
-    st.session_state.total_clicks += 1  # 수동 클릭 횟수 증가
 
 def toggle_shop():
     st.session_state.show_shop = not st.session_state.show_shop
@@ -83,21 +87,28 @@ def buy_upgrade():
         chosen_multiplier = random.choices(multipliers, weights=weights, k=1)[0]
         
         st.session_state.cost *= chosen_multiplier
-        st.toast(f"🎉 업그레이드 성공! (다음 비용 {chosen_multiplier}배 상승)")
+        st.toast(f"🎉 클릭 강화 성공! (다음 비용 {chosen_multiplier}배 상승)")
     else:
         st.toast("❌ 카운트가 부족합니다!")
 
-# 🤖 오토클릭 구매 함수
-def buy_autoclick():
-    if st.session_state.total_clicks < 500:
-        st.toast("🔒 총 500회 이상 클릭해야 구매할 수 있습니다!")
-        return
+def buy_auto_speed():
+    if st.session_state.count >= st.session_state.auto_speed_cost:
+        if st.session_state.auto_interval <= 0.1:
+            st.toast("⚡ 이미 최고 속도(0.1초)에 도달했습니다!")
+            return
+        st.session_state.count -= st.session_state.auto_speed_cost
+        st.session_state.auto_interval = round(st.session_state.auto_interval - 0.1, 1)
+        st.session_state.auto_speed_cost = int(st.session_state.auto_speed_cost * 1.5)
+        st.toast(f"⚡ 오토클릭 속도 증가! (현재 주기: {st.session_state.auto_interval:.1f}초)")
+    else:
+        st.toast("❌ 카운트가 부족합니다!")
 
-    if st.session_state.count >= st.session_state.auto_cost:
-        st.session_state.count -= st.session_state.auto_cost
-        st.session_state.auto_clicks += 1
-        st.session_state.auto_cost *= 5  # 가격 5배 상승
-        st.toast("🤖 오토클릭 구매 성공! (초당 카운트 +1)")
+def buy_auto_power():
+    if st.session_state.count >= st.session_state.auto_power_cost:
+        st.session_state.count -= st.session_state.auto_power_cost
+        st.session_state.auto_per_sec += 1
+        st.session_state.auto_power_cost *= 2
+        st.toast(f"🤖 오토클릭 수치 증가! (현재 자동 획득량: +{st.session_state.auto_per_sec:,})")
     else:
         st.toast("❌ 카운트가 부족합니다!")
 
@@ -128,7 +139,7 @@ def gamble(amount):
     else:
         st.toast("❌ 배팅할 카운트가 부족합니다!")
 
-# 4. 키보드 이벤트 처리 (DOM 클릭 방식)
+# 5. 키보드 이벤트 처리 (DOM 클릭 방식)
 st.components.v1.html(
     """
     <script>
@@ -166,24 +177,22 @@ st.components.v1.html(
     height=0,
 )
 
-# 5. UI 구성
+# 6. UI 구성
 st.title("🔢 스페이스 카운터")
 
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("현재 카운트", f"{st.session_state.count:,}")
 with col2:
-    st.metric("1회당 증가량", f"+{st.session_state.per_click:,}")
+    st.metric("1회 클릭당", f"+{st.session_state.per_click:,}")
 with col3:
-    st.metric("초당 자동 증가", f"+{st.session_state.auto_clicks:,}/초")
+    st.metric("오토 클릭", f"+{st.session_state.auto_per_sec:,} / {st.session_state.auto_interval:.1f}초")
 
 st.button(
     f"숫자 올리기 (+{st.session_state.per_click:,}) (Space 키)", 
     on_click=increment, 
     use_container_width=True
 )
-
-st.caption(f"👆 누적 수동 클릭 횟수: **{st.session_state.total_clicks:,} / 500회**")
 
 st.write("---")
 
@@ -203,45 +212,56 @@ with col_btn2:
         use_container_width=True
     )
 
-# 6. 상점 UI
+# 7. 상점 UI
 if st.session_state.show_shop:
     with st.expander("🛒 강화 상점", expanded=True):
-        # 클릭 강화
+        # 수동 클릭 강화
         st.markdown("**1. 클릭당 증가량 +1 강화**")
         st.write(f"- 필요 카운트: **{st.session_state.cost:,}**")
-        st.write(f"- 구매 후 증가 수치: **+{st.session_state.per_click + 1:,}**")
-        st.caption("🎲 구매 시 다음 비용이 랜덤 배율(2배/3배/5배/10배)로 상승합니다.")
-        
-        can_buy = st.session_state.count >= st.session_state.cost
+        st.write(f"- 구매 후 수치: **+{st.session_state.per_click + 1:,}**")
+        st.caption("🎲 다음 비용이 랜덤 배율(2배/3배/5배/10배)로 상승합니다.")
+        can_buy_click = st.session_state.count >= st.session_state.cost
         st.button(
-            "클릭 강화 구매하기", 
+            "클릭 강화 구매", 
+            key="buy_click_btn",
             on_click=buy_upgrade, 
-            disabled=not can_buy,
+            disabled=not can_buy_click,
             use_container_width=True
         )
 
         st.write("---")
 
-        # 🤖 오토클릭 강화 (신규 추가)
-        st.markdown("**2. 🤖 오토클릭 구매 (초당 +1 카운트)**")
-        st.write(f"- 필요 카운트: **{st.session_state.auto_cost:,}**")
-        st.write(f"- 현재 오토클릭 보유량: **{st.session_state.auto_clicks}개** (초당 +{st.session_state.auto_clicks})")
-        st.caption("⚠️ **해금 조건:** 수동 클릭 총 500회 이상 달성 필요 (구매 시마다 비용 5배 상승)")
-
-        unlocked = st.session_state.total_clicks >= 500
-        can_buy_auto = (st.session_state.count >= st.session_state.auto_cost) and unlocked
-
-        if not unlocked:
-            st.warning(f"🔒 잠김: 수동 클릭 {500 - st.session_state.total_clicks:,}회 더 필요")
-
+        # 오토클릭 속도 강화
+        st.markdown("**2. ⚡ 오토클릭 속도 강화 (-0.1초)**")
+        st.write(f"- 필요 카운트: **{st.session_state.auto_speed_cost:,}**")
+        st.write(f"- 현재 주기: **{st.session_state.auto_interval:.1f}초** → 구매 후: **{max(0.1, round(st.session_state.auto_interval - 0.1, 1)):.1f}초**")
+        st.caption("📈 구매 시마다 다음 비용이 50%씩 증가합니다. (최대 0.1초까지 단축 가능)")
+        can_buy_speed = (st.session_state.count >= st.session_state.auto_speed_cost) and (st.session_state.auto_interval > 0.1)
         st.button(
-            "🤖 오토클릭 구매하기",
-            on_click=buy_autoclick,
-            disabled=not can_buy_auto,
+            "속도 강화 구매", 
+            key="buy_speed_btn",
+            on_click=buy_auto_speed, 
+            disabled=not can_buy_speed,
             use_container_width=True
         )
 
-# 7. 도박장 UI
+        st.write("---")
+
+        # 오토클릭 클릭량 강화
+        st.markdown("**3. 🤖 오토클릭 클릭량 강화 (+1)**")
+        st.write(f"- 필요 카운트: **{st.session_state.auto_power_cost:,}**")
+        st.write(f"- 현재 획득량: **+{st.session_state.auto_per_sec:,}** → 구매 후: **+{st.session_state.auto_per_sec + 1:,}**")
+        st.caption("📈 구매 시마다 다음 비용이 2배씩 증가합니다.")
+        can_buy_power = st.session_state.count >= st.session_state.auto_power_cost
+        st.button(
+            "클릭량 강화 구매", 
+            key="buy_power_btn",
+            on_click=buy_auto_power, 
+            disabled=not can_buy_power,
+            use_container_width=True
+        )
+
+# 8. 도박장 UI
 if st.session_state.show_casino:
     with st.expander("🎰 행운의 도박장", expanded=True):
         st.markdown("**배팅 금액 및 남아있는 횟수**")
