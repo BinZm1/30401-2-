@@ -1,26 +1,49 @@
 import streamlit as st
 
-st.title("🔢 스페이스바 카운터")
+st.set_page_config(page_title="스페이스 카운터 & 상점", layout="centered")
 
-# 카운트 상태 초기화
+# 1. 세션 상태(변수) 초기화
 if "count" not in st.session_state:
     st.session_state.count = 0
+if "per_click" not in st.session_state:
+    st.session_state.per_click = 1
+if "cost" not in st.session_state:
+    st.session_state.cost = 50
+if "show_shop" not in st.session_state:
+    st.session_state.show_shop = False
 
-# 카운트 증가 함수
+# 2. 로직 함수 정의
 def increment():
-    st.session_state.count += 1
+    st.session_state.count += st.session_state.per_click
 
-# 스페이스바 키 입력 감지 (Streamlit HTML/JS 주입)
+def toggle_shop():
+    st.session_state.show_shop = not st.session_state.show_shop
+
+def buy_upgrade():
+    if st.session_state.count >= st.session_state.cost:
+        st.session_state.count -= st.session_state.cost
+        st.session_state.per_click += 1
+        st.session_state.cost *= 2
+        st.toast("🎉 업그레이드 성공!")
+    else:
+        st.toast("❌ 카운트(점수)가 부족합니다!")
+
+# 3. 키보드 단축키 단축 이벤트 (Space: 클릭, KeyE: 상점 토글)
 st.components.v1.html(
     """
     <script>
     const doc = window.parent.document;
     doc.addEventListener('keydown', function(e) {
+        if (e.repeat) return; // 키를 계속 누르고 있을 때 연속 발동 방지
+        
         if (e.code === 'Space') {
             e.preventDefault();
-            // 화면 내 버튼 찾아서 클릭 실행
-            const btn = doc.querySelector('button[kind="primary"]');
+            const btn = doc.querySelector('button[data-testid="baseButton-secondary"]');
             if (btn) btn.click();
+        } else if (e.code === 'KeyE') {
+            e.preventDefault();
+            const shopBtn = doc.querySelector('#shop-toggle-btn button');
+            if (shopBtn) shopBtn.click();
         }
     });
     </script>
@@ -28,6 +51,40 @@ st.components.v1.html(
     height=0,
 )
 
-# UI 구성
-st.metric(label="현재 카운트", value=st.session_state.count)
-st.button("숫자 올리기 (Space 키 가능)", on_click=increment, type="primary")
+# 4. Main UI
+st.title("🔢 스페이스 카운터")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("현재 카운트", st.session_state.count)
+with col2:
+    st.metric("1회당 증가량", f"+{st.session_state.per_click}")
+
+# 기본 카운트 버튼 (Space 단축키 연동)
+st.button("숫자 올리기 (Space 키)", on_click=increment, use_container_width=True)
+
+st.write("---")
+
+# 상점 토글 버튼 (E 키 연동)
+st.container().id = "shop-toggle-btn"
+st.button(
+    f"🏪 상점 {'닫기' if st.session_state.show_shop else '열기'} (E 키)", 
+    on_click=toggle_shop, 
+    type="primary" if not st.session_state.show_shop else "secondary",
+    use_container_width=True
+)
+
+# 5. 상점 UI
+if st.session_state.show_shop:
+    with st.expander("🛒 강화 상점", expanded=True):
+        st.markdown(f"**클릭당 증가량 +1 강화**")
+        st.write(f"- 필요 카운트: **{st.session_state.cost}**")
+        st.write(f"- 구매 후 증가량: **+{st.session_state.per_click + 1}**")
+        
+        can_buy = st.session_state.count >= st.session_state.cost
+        st.button(
+            "구매하기", 
+            on_click=buy_upgrade, 
+            disabled=not can_buy,
+            use_container_width=True
+        )
