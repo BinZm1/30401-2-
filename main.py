@@ -12,20 +12,14 @@ if "cost" not in st.session_state:
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
 
-# Query Parameter로 입력된 키 이벤트 처리
-query_params = st.query_params
-if "key" in query_params:
-    pressed_key = query_params["key"]
-    # URL 파라미터 초기화
-    st.query_params.clear()
-    
-    if pressed_key == "space":
-        st.session_state.count += st.session_state.per_click
-    elif pressed_key in ["e", "E"]:
-        st.session_state.show_shop = not st.session_state.show_shop
-    st.rerun()
-
 # 2. 로직 함수
+def increment():
+    # 스페이스바 누르면 1씩 증가 (기존 클릭당 증가량과 상관없이 +1로 변경)
+    st.session_state.count += 1
+
+def toggle_shop():
+    st.session_state.show_shop = not st.session_state.show_shop
+
 def buy_upgrade():
     if st.session_state.count >= st.session_state.cost:
         st.session_state.count -= st.session_state.cost
@@ -35,28 +29,27 @@ def buy_upgrade():
     else:
         st.toast("❌ 카운트가 부족합니다!")
 
-# 3. 키보드 이벤트 감지 스크립트 (기본 HTML/JS 방식)
+# 3. 키보드 감지 JavaScript
+# 스페이스바 또는 E키 누를 때 Streamlit 버튼 요소를 직접 트리거합니다.
 st.components.v1.html(
     """
     <script>
-    const doc = window.parent.document;
-    doc.addEventListener('keydown', function(e) {
-        if (e.repeat) return;
+    const parentDoc = window.parent.document;
+    
+    parentDoc.addEventListener('keydown', function(e) {
+        // 입력 창(text input 등)에 입력 중일 때는 반응하지 않음
+        if (['INPUT', 'TEXTAREA'].includes(parentDoc.activeElement.tagName)) return;
         
         if (e.code === 'Space') {
             e.preventDefault();
-            window.parent.postMessage({type: 'KEY_PRESS', key: 'space'}, '*');
+            // 첫 번째 메인 버튼(숫자 올리기) 찾아서 클릭
+            const countBtn = parentDoc.querySelector('button[key="count_btn"]');
+            if (countBtn) countBtn.click();
         } else if (e.code === 'KeyE') {
             e.preventDefault();
-            window.parent.postMessage({type: 'KEY_PRESS', key: 'e'}, '*');
-        }
-    });
-
-    window.addEventListener('message', function(event) {
-        if (event.data.type === 'KEY_PRESS') {
-            const url = new URL(window.parent.location.href);
-            url.searchParams.set('key', event.data.key);
-            window.parent.location.search = url.searchParams.toString();
+            // 상점 버튼 찾아서 클릭
+            const shopBtn = parentDoc.querySelector('button[key="shop_btn"]');
+            if (shopBtn) shopBtn.click();
         }
     });
     </script>
@@ -64,36 +57,40 @@ st.components.v1.html(
     height=0,
 )
 
-# 4. UI 화면 구성
+# 4. UI 구성
 st.title("🔢 스페이스 카운터")
 
 col1, col2 = st.columns(2)
 with col1:
     st.metric("현재 카운트", st.session_state.count)
 with col2:
-    st.metric("1회당 증가량", f"+{st.session_state.per_click}")
+    st.metric("상점 업그레이드 수치", f"+{st.session_state.per_click}")
 
-# 수동 클릭용 버튼
-if st.button("숫자 올리기 (Space 키)", use_container_width=True):
-    st.session_state.count += st.session_state.per_click
-    st.rerun()
+# 기본 카운트 버튼 (key="count_btn" 설정으로 JS 연동)
+st.button(
+    "숫자 올리기 (+1) (Space 키)", 
+    key="count_btn",
+    on_click=increment, 
+    use_container_width=True
+)
 
 st.write("---")
 
-if st.button(
+# 상점 버튼 (key="shop_btn" 설정으로 JS 연동)
+st.button(
     f"🏪 상점 {'닫기' if st.session_state.show_shop else '열기'} (E 키)", 
+    key="shop_btn",
+    on_click=toggle_shop, 
     type="primary" if not st.session_state.show_shop else "secondary",
     use_container_width=True
-):
-    st.session_state.show_shop = not st.session_state.show_shop
-    st.rerun()
+)
 
 # 5. 상점 UI
 if st.session_state.show_shop:
     with st.expander("🛒 강화 상점", expanded=True):
         st.markdown(f"**클릭당 증가량 +1 강화**")
         st.write(f"- 필요 카운트: **{st.session_state.cost}**")
-        st.write(f"- 구매 후 증가량: **+{st.session_state.per_click + 1}**")
+        st.write(f"- 구매 후 수치: **+{st.session_state.per_click + 1}**")
         
         can_buy = st.session_state.count >= st.session_state.cost
         st.button(
