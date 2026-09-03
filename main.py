@@ -192,15 +192,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 6. 실시간 카운터 단일 표기 영역 ("현재 카운트 (실시간)" 전용)
+# 6. 조건부 카운터 출력
 @st.fragment(run_every=1)
-def render_realtime_counter():
-    if st.session_state.auto_clickers > 0:
-        st.session_state.count += st.session_state.auto_clickers
-
+def render_auto_counter():
+    st.session_state.count += st.session_state.auto_clickers
     st.metric("현재 카운트 (실시간)", f"{st.session_state.count:,}")
 
-render_realtime_counter()
+if st.session_state.auto_clickers > 0:
+    # 오토클릭커를 1개 이상 보유 시 실시간 타이머 프래그먼트 실행
+    render_auto_counter()
+else:
+    # 보유 전에는 일반 메트릭 표기
+    st.metric("현재 카운트", f"{st.session_state.count:,}")
 
 st.button(
     f"숫자 올리기 (+{st.session_state.per_click:,}) (Space 키)", 
