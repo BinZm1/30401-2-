@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_keyboard_event import keyboard_event
 
 st.set_page_config(page_title="스페이스 카운터 & 상점", layout="centered")
 
@@ -28,31 +29,22 @@ def buy_upgrade():
     else:
         st.toast("❌ 카운트(점수)가 부족합니다!")
 
-# 3. 키보드 단축키 단축 이벤트 (Space: 클릭, KeyE: 상점 토글)
-st.components.v1.html(
-    """
-    <script>
-    const doc = window.parent.document;
-    doc.addEventListener('keydown', function(e) {
-        if (e.repeat) return; // 키를 계속 누르고 있을 때 연속 발동 방지
-        
-        if (e.code === 'Space') {
-            e.preventDefault();
-            const btn = doc.querySelector('button[data-testid="baseButton-secondary"]');
-            if (btn) btn.click();
-        } else if (e.code === 'KeyE') {
-            e.preventDefault();
-            const shopBtn = doc.querySelector('#shop-toggle-btn button');
-            if (shopBtn) shopBtn.click();
-        }
-    });
-    </script>
-    """,
-    height=0,
+# 3. 키보드 감지 컴포넌트 실행 (Space, e, E)
+key_event = keyboard_event(
+    key_list=["Space", "e", "E"],
+    key=st.session_state.get("key_listen_id", "kb_event")
 )
 
+# 키 입력 이벤트 처리
+if key_event:
+    pressed_key = key_event.get("key")
+    if pressed_key == "Space":
+        increment()
+    elif pressed_key in ["e", "E"]:
+        toggle_shop()
+
 # 4. Main UI
-st.title("🔢 스페이스 카운터")
+st.title("그냥 스페이스바")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -60,13 +52,12 @@ with col1:
 with col2:
     st.metric("1회당 증가량", f"+{st.session_state.per_click}")
 
-# 기본 카운트 버튼 (Space 단축키 연동)
+# 기본 카운트 버튼
 st.button("숫자 올리기 (Space 키)", on_click=increment, use_container_width=True)
 
 st.write("---")
 
-# 상점 토글 버튼 (E 키 연동)
-st.container().id = "shop-toggle-btn"
+# 상점 토글 버튼
 st.button(
     f"🏪 상점 {'닫기' if st.session_state.show_shop else '열기'} (E 키)", 
     on_click=toggle_shop, 
