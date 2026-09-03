@@ -123,14 +123,7 @@ def gamble(amount):
     else:
         st.toast("❌ 배팅할 카운트가 부족합니다!")
 
-# 4. 안전한 오토 클릭커 타이머
-@st.fragment(run_every=1)
-def auto_clicker_timer():
-    if st.session_state.auto_clickers > 0:
-        st.session_state.count += st.session_state.auto_clickers
-        st.metric("현재 카운트 (실시간)", f"{st.session_state.count:,}")
-
-# 5. 키보드 이벤트 처리 (Space, E, QWER 멀티키 치트 감지)
+# 4. 키보드 이벤트 처리 (Space, E, QWER 멀티키 치트 감지)
 st.components.v1.html(
     """
     <script>
@@ -190,7 +183,7 @@ st.components.v1.html(
 # 숨겨진 QWER 치트 버튼
 st.button("Cheat", key="cheat_btn", on_click=lambda: increment(5000), type="secondary", use_container_width=False)
 
-# 6. UI 구성
+# 5. UI 구성
 st.title("🔢 스페이스 카운터")
 
 # 치트 버튼 숨기기용 CSS
@@ -202,16 +195,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("현재 카운트", f"{st.session_state.count:,}")
-with col2:
-    st.metric("1회당 증가량", f"+{st.session_state.per_click:,}")
-with col3:
-    st.metric("자동 증가량", f"+{st.session_state.auto_clickers:,}/초")
+# 6. 실시간 메인 카운트 및 오토 클릭커 갱신 영역 (1초 마다 자동 증가 및 반영)
+@st.fragment(run_every=1)
+def render_main_counter():
+    if st.session_state.auto_clickers > 0:
+        st.session_state.count += st.session_state.auto_clickers
 
-# 실시간 오토 클릭커 갱신 영역
-auto_clicker_timer()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("현재 카운트", f"{st.session_state.count:,}")
+    with col2:
+        st.metric("1회당 증가량", f"+{st.session_state.per_click:,}")
+    with col3:
+        st.metric("자동 증가량", f"+{st.session_state.auto_clickers:,}/초")
+
+render_main_counter()
 
 st.button(
     f"숫자 올리기 (+{st.session_state.per_click:,}) (Space 키)", 
