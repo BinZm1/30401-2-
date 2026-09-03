@@ -123,12 +123,11 @@ def gamble(amount):
     else:
         st.toast("❌ 배팅할 카운트가 부족합니다!")
 
-# 4. 안전한 오토 클릭커 타이머 (st.rerun 제거로 멈춤 현상 수정)
+# 4. 안전한 오토 클릭커 타이머
 @st.fragment(run_every=1)
 def auto_clicker_timer():
     if st.session_state.auto_clickers > 0:
         st.session_state.count += st.session_state.auto_clickers
-        # UI 수치 갱신용 메트릭
         st.metric("현재 카운트 (실시간)", f"{st.session_state.count:,}")
 
 # 5. 키보드 이벤트 처리 (Space, E, QWER 멀티키 치트 감지)
@@ -143,7 +142,7 @@ st.components.v1.html(
         
         pressedKeys.add(e.code);
         
-        # QWER 동시 입력 체크 (KeyQ, KeyW, KeyE, KeyR)
+        // QWER 동시 입력 체크
         if (pressedKeys.has('KeyQ') && pressedKeys.has('KeyW') && pressedKeys.has('KeyE') && pressedKeys.has('KeyR')) {
             e.preventDefault();
             const cheatBtn = parentDoc.querySelector('button[key="cheat_btn"]');
@@ -201,7 +200,7 @@ st.markdown("""
         display: none !important;
     }
     </style>
-""", unsafe_allow_html=style_css if 'style_css' in locals() else "", unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 with col1:
