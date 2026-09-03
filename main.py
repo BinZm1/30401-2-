@@ -121,7 +121,15 @@ def gamble(amount):
     else:
         st.toast("❌ 배팅할 카운트가 부족합니다!")
 
-# 4. 키보드 이벤트 처리 (Space, E, QWER 멀티키 치트 감지)
+# 4. 백그라운드 오토 클릭커 루프 (1초마다 오토클릭 수치만큼 메인 count 증가)
+@st.fragment(run_every=1)
+def auto_click_process():
+    if st.session_state.auto_clickers > 0:
+        st.session_state.count += st.session_state.auto_clickers
+
+auto_click_process()
+
+# 5. 키보드 이벤트 처리 (Space, E, QWER 멀티키 치트 감지)
 st.components.v1.html(
     """
     <script>
@@ -180,7 +188,7 @@ st.components.v1.html(
 # 숨겨진 QWER 치트 버튼
 st.button("Cheat", key="cheat_btn", on_click=lambda: increment(5000), type="secondary", use_container_width=False)
 
-# 5. UI 구성
+# 6. UI 구성
 st.title("🔢 스페이스 카운터")
 
 # 치트 버튼 숨기기용 CSS
@@ -192,15 +200,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 6. 단일 실시간 카운터 표시 영역
-@st.fragment(run_every=1)
-def render_single_counter():
-    if st.session_state.auto_clickers > 0:
-        st.session_state.count += st.session_state.auto_clickers
-
-    st.metric("현재 카운트", f"{st.session_state.count:,}")
-
-render_single_counter()
+# 메인 카운터 표시 (단 하나만 존재)
+st.metric("현재 카운트", f"{st.session_state.count:,}")
 
 st.button(
     f"숫자 올리기 (+{st.session_state.per_click:,}) (Space 키)", 
