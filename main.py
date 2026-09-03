@@ -1,9 +1,8 @@
 import streamlit as st
-from streamlit_keyboard_event import keyboard_event
 
 st.set_page_config(page_title="스페이스 카운터 & 상점", layout="centered")
 
-# 1. 세션 상태(변수) 초기화
+# 1. 세션 상태 초기화
 if "count" not in st.session_state:
     st.session_state.count = 0
 if "per_click" not in st.session_state:
@@ -13,13 +12,20 @@ if "cost" not in st.session_state:
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
 
-# 2. 로직 함수 정의
-def increment():
-    st.session_state.count += st.session_state.per_click
+# Query Parameter로 입력된 키 이벤트 처리
+query_params = st.query_params
+if "key" in query_params:
+    pressed_key = query_params["key"]
+    # URL 파라미터 초기화
+    st.query_params.clear()
+    
+    if pressed_key == "space":
+        st.session_state.count += st.session_state.per_click
+    elif pressed_key in ["e", "E"]:
+        st.session_state.show_shop = not st.session_state.show_shop
+    st.rerun()
 
-def toggle_shop():
-    st.session_state.show_shop = not st.session_state.show_shop
-
+# 2. 로직 함수
 def buy_upgrade():
     if st.session_state.count >= st.session_state.cost:
         st.session_state.count -= st.session_state.cost
@@ -27,23 +33,38 @@ def buy_upgrade():
         st.session_state.cost *= 2
         st.toast("🎉 업그레이드 성공!")
     else:
-        st.toast("❌ 카운트(점수)가 부족합니다!")
+        st.toast("❌ 카운트가 부족합니다!")
 
-# 3. 키보드 감지 컴포넌트 실행 (Space, e, E)
-key_event = keyboard_event(
-    key_list=["Space", "e", "E"],
-    key=st.session_state.get("key_listen_id", "kb_event")
+# 3. 키보드 이벤트 감지 스크립트 (기본 HTML/JS 방식)
+st.components.v1.html(
+    """
+    <script>
+    const doc = window.parent.document;
+    doc.addEventListener('keydown', function(e) {
+        if (e.repeat) return;
+        
+        if (e.code === 'Space') {
+            e.preventDefault();
+            window.parent.postMessage({type: 'KEY_PRESS', key: 'space'}, '*');
+        } else if (e.code === 'KeyE') {
+            e.preventDefault();
+            window.parent.postMessage({type: 'KEY_PRESS', key: 'e'}, '*');
+        }
+    });
+
+    window.addEventListener('message', function(event) {
+        if (event.data.type === 'KEY_PRESS') {
+            const url = new URL(window.parent.location.href);
+            url.searchParams.set('key', event.data.key);
+            window.parent.location.search = url.searchParams.toString();
+        }
+    });
+    </script>
+    """,
+    height=0,
 )
 
-# 키 입력 이벤트 처리
-if key_event:
-    pressed_key = key_event.get("key")
-    if pressed_key == "Space":
-        increment()
-    elif pressed_key in ["e", "E"]:
-        toggle_shop()
-
-# 4. Main UI
+# 4. UI 화면 구성
 st.title("🔢 스페이스 카운터")
 
 col1, col2 = st.columns(2)
@@ -52,18 +73,20 @@ with col1:
 with col2:
     st.metric("1회당 증가량", f"+{st.session_state.per_click}")
 
-# 기본 카운트 버튼
-st.button("숫자 올리기 (Space 키)", on_click=increment, use_container_width=True)
+# 수동 클릭용 버튼
+if st.button("숫자 올리기 (Space 키)", use_container_width=True):
+    st.session_state.count += st.session_state.per_click
+    st.rerun()
 
 st.write("---")
 
-# 상점 토글 버튼
-st.button(
+if st.button(
     f"🏪 상점 {'닫기' if st.session_state.show_shop else '열기'} (E 키)", 
-    on_click=toggle_shop, 
     type="primary" if not st.session_state.show_shop else "secondary",
     use_container_width=True
-)
+):
+    st.session_state.show_shop = not st.session_state.show_shop
+    st.rerun()
 
 # 5. 상점 UI
 if st.session_state.show_shop:
