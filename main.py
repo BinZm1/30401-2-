@@ -44,7 +44,7 @@ if key_event:
         toggle_shop()
 
 # 4. Main UI
-st.title("그냥 스페이스바")
+st.title("🔢 스페이스 카운터")
 
 col1, col2 = st.columns(2)
 with col1:
