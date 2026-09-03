@@ -192,15 +192,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 6. 실시간 통합 카운터 (중복 표기를 지우고 하나만 표시)
+# 6. 실시간 카운터 단일 표기 영역 ("현재 카운트 (실시간)" 전용)
 @st.fragment(run_every=1)
-def render_main_counter():
+def render_realtime_counter():
     if st.session_state.auto_clickers > 0:
         st.session_state.count += st.session_state.auto_clickers
 
-    st.metric("현재 카운트", f"{st.session_state.count:,}")
+    st.metric("현재 카운트 (실시간)", f"{st.session_state.count:,}")
 
-render_main_counter()
+render_realtime_counter()
 
 st.button(
     f"숫자 올리기 (+{st.session_state.per_click:,}) (Space 키)", 
