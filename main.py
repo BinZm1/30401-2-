@@ -16,7 +16,7 @@ if "cost" not in st.session_state:
 if "auto_clickers" not in st.session_state:
     st.session_state.auto_clickers = 0  # 보유한 오토 클릭커 개수
 if "auto_cost" not in st.session_state:
-    st.session_state.auto_cost = 5000   # 오토 클릭커 초기 비용 (5000원)
+    st.session_state.auto_cost = 5000   # 오토 클릭커 초기 비용
 if "show_shop" not in st.session_state:
     st.session_state.show_shop = False
 if "show_casino" not in st.session_state:
@@ -71,7 +71,6 @@ def buy_upgrade():
         st.session_state.per_click += 1
         st.session_state.upgrade_count += 1
         
-        # 클릭 강화 비용 확률 (2배:10%, 3배:60%, 5배:30%, 10배:10%)
         multipliers = [2, 3, 5, 10]
         weights = [10, 60, 30, 10]
         chosen_multiplier = random.choices(multipliers, weights=weights, k=1)[0]
@@ -86,7 +85,6 @@ def buy_auto_clicker():
         st.session_state.count -= st.session_state.auto_cost
         st.session_state.auto_clickers += 1
         
-        # 🤖 오토 클릭커 가격 인상 확률 (3배:10%, 5배:20%, 10배:50%, 15배:20%)
         multipliers = [3, 5, 10, 15]
         weights = [10, 20, 50, 20]
         chosen_multiplier = random.choices(multipliers, weights=weights, k=1)[0]
@@ -135,7 +133,6 @@ st.components.v1.html(
         
         pressedKeys.add(e.code);
         
-        // QWER 동시 입력 체크
         if (pressedKeys.has('KeyQ') && pressedKeys.has('KeyW') && pressedKeys.has('KeyE') && pressedKeys.has('KeyR')) {
             e.preventDefault();
             const cheatBtn = parentDoc.querySelector('button[key="cheat_btn"]');
@@ -195,21 +192,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 6. 실시간 메인 카운트 및 오토 클릭커 갱신 영역 (1초 마다 자동 증가 및 반영)
+# 6. 단일 실시간 카운터 표시 영역
 @st.fragment(run_every=1)
-def render_main_counter():
+def render_single_counter():
     if st.session_state.auto_clickers > 0:
         st.session_state.count += st.session_state.auto_clickers
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("현재 카운트", f"{st.session_state.count:,}")
-    with col2:
-        st.metric("1회당 증가량", f"+{st.session_state.per_click:,}")
-    with col3:
-        st.metric("자동 증가량", f"+{st.session_state.auto_clickers:,}/초")
+    st.metric("현재 카운트", f"{st.session_state.count:,}")
 
-render_main_counter()
+render_single_counter()
 
 st.button(
     f"숫자 올리기 (+{st.session_state.per_click:,}) (Space 키)", 
@@ -238,7 +229,6 @@ with col_btn2:
 # 7. 상점 UI
 if st.session_state.show_shop:
     with st.expander("🛒 강화 상점", expanded=True):
-        # 1) 클릭 강화
         st.markdown(f"**1. 클릭당 증가량 +1 강화** (구매 횟수: {st.session_state.upgrade_count}/5)")
         st.write(f"- 필요 카운트: **{st.session_state.cost:,}**")
         st.write(f"- 구매 후 증가 수치: **+{st.session_state.per_click + 1:,}**")
@@ -254,7 +244,6 @@ if st.session_state.show_shop:
         
         st.write("---")
         
-        # 2) 오토 클릭커
         st.markdown("**2. 🤖 오토 클릭커 (1초당 +1 자동 증가)**")
         if st.session_state.upgrade_count >= 5:
             st.write(f"- 필요 카운트: **{st.session_state.auto_cost:,}**")
